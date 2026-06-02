@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Главная — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title">Главная</div>
+        <div class="ph-sub" id="ph-date"></div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Тема"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in">
+    <!-- KPI -->
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <!-- Regions -->
+      <div class="detail-card">
+        <div class="detail-card-title">Агентства по регионам</div>
+        <div id="region-bars"></div>
+      </div>
+      <!-- New licenses -->
+      <div class="detail-card">
+        <div class="detail-card-title">Новые лицензии (последние)</div>
+        <div id="new-licenses"></div>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section">
+      <div class="section-hdr">
+        <div class="section-title">Последние изменения</div>
+        <a href="agencies.html?status=REVOKED" class="section-link">
+          Все прекращённые
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </a>
+      </div>
+      <div id="alerts"></div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="section">
+      <div class="section-hdr"><div class="section-title">Быстрый доступ</div></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="quick-actions"></div>
+    </div>
+  </div>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('dashboard');
+
+const data = getData();
+const { agencies, realtors } = data;
+
+// Date
+document.getElementById('ph-date').textContent =
+  new Date().toLocaleDateString('ru-BY', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+// KPI
+const activeAgencies = agencies.filter(a => a.status === 'ACTIVE');
+const chamberMembers = realtors.filter(r => r.isChamberMember);
+document.getElementById('kpi-grid').innerHTML = [
+  { label:'Всего агентств',       val: agencies.length,       sub:'в реестре МЮ РБ',  color:'#dbeafe', text:'#1d4ed8', ico:'building' },
+  { label:'Действующих лицензий', val: activeAgencies.length, sub:'актуальные',       color:'#dcfce7', text:'#15803d', ico:'shield' },
+  { label:'Риэлтеры в реестре',   val: realtors.length,       sub:'аттестованные',    color:'#f3e8ff', text:'#7c3aed', ico:'users' },
+  { label:'Члены Палаты',         val: chamberMembers.length, sub:'действующие члены',color:'#fef3c7', text:'#b45309', ico:'id' },
+].map(k => `
+  <div class="kpi-card">
+    <div class="kpi-icon" style="background:${k.color}">
+      <svg viewBox="0 0 24 24" style="color:${k.text}">${ICONS[k.ico]}</svg>
+    </div>
+    <div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  </div>`).join('');
+
+// Region bars
+const regionMap = {};
+agencies.forEach(a => { regionMap[a.region] = (regionMap[a.region]||0)+1; });
+const maxReg = Math.max(...Object.values(regionMap));
+const regionOrder = ['MINSK','BREST','VITEBSK','GOMEL','GRODNO','MINSK_REGION','MOGILEV'];
+document.getElementById('region-bars').innerHTML = regionOrder.map(r => `
+  <div class="rb-item">
+    <div class="rb-name">${regionLabel(r)}</div>
+    <div class="rb-track">
+      <div class="rb-fill" style="width:${((regionMap[r]||0)/maxReg*100).toFixed(1)}%;background:${regionColor(r)}"></div>
+    </div>
+    <div class="rb-cnt">${regionMap[r]||0}</div>
+  </div>`).join('');
+
+// New licenses (5 most recent)
+const sorted = [...agencies].sort((a,b) => new Date(b.licenseDate)-new Date(a.licenseDate)).slice(0,6);
+document.getElementById('new-licenses').innerHTML = sorted.map(a => `
+  <a href="agency.html?id=${a.id}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-lt);cursor:pointer;text-decoration:none;color:inherit">
+    <div class="agency-av" style="width:34px;height:34px;font-size:11px;border-radius:8px">${initials(a.name)}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+      <div style="font-size:11.5px;color:var(--text-3)">${fmtDate(a.licenseDate)}</div>
+    </div>
+    ${statusBadge(a.status)}
+  </a>`).join('');
+
+// Alerts — revoked agencies
+const revoked = agencies.filter(a => a.status === 'REVOKED').slice(0,4);
+document.getElementById('alerts').innerHTML = revoked.length ? revoked.map(a => `
+  <div class="alert alert-danger">
+    <svg viewBox="0 0 24 24">${ICONS.warn}</svg>
+    <div>
+      <strong>${a.name}</strong> — лицензия прекращена ${fmtDate(a.licenseRevoked)}
+      <div style="font-size:12px;margin-top:2px">УНП: ${a.unp} · Лицензия: ${a.licenseNum}</div>
+    </div>
+    <a href="agency.html?id=${a.id}" style="margin-left:auto;font-size:12px;color:inherit;text-decoration:underline;white-space:nowrap">Подробнее</a>
+  </div>`).join('') :
+  '<div style="font-size:13px;color:var(--text-3)">Нет актуальных предупреждений</div>';
+
+// Quick actions
+const actions = [
+  { label:'Каталог агентств', sub:'Найти агентство', href:'agencies.html', bg:'#dbeafe', c:'#1d4ed8', ico:'building' },
+  { label:'Реестр риэлтеров', sub:'Проверить аттестат', href:'realtors.html', bg:'#f3e8ff', c:'#7c3aed', ico:'users' },
+  { label:'Аналитика', sub:'Графики и статистика', href:'analytics.html', bg:'#dcfce7', c:'#15803d', ico:'chart' },
+  { label:'Импорт данных', sub:'Загрузить реестр', href:'admin.html', bg:'#fef3c7', c:'#b45309', ico:'upload' },
+];
+document.getElementById('quick-actions').innerHTML = actions.map(a => `
+  <a href="${a.href}" style="
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:16px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow);
+    display:block;text-decoration:none;color:inherit;
+  " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-md)'"
+     onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
+    <div style="width:38px;height:38px;border-radius:9px;background:${a.bg};display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+      <svg viewBox="0 0 24 24" style="width:19px;height:19px;color:${a.c};stroke:currentColor;fill:none;stroke-width:1.5">${ICONS[a.ico]}</svg>
+    </div>
+    <div style="font-size:13.5px;font-weight:600">${a.label}</div>
+    <div style="font-size:12px;color:var(--text-3);margin-top:2px">${a.sub}</div>
+  </a>`).join('');
+</script>
+</body>
+</html>

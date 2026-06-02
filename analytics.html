@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Аналитика — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title">Аналитика</div>
+        <div class="ph-sub">Статистика рынка недвижимости Беларуси</div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in">
+    <!-- KPI -->
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-title">Агентства по регионам</div>
+        <div class="chart-container" style="height:280px">
+          <canvas id="chart-regions"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Топ-10: агентства по числу риэлтеров</div>
+        <div class="chart-container" style="height:280px">
+          <canvas id="chart-top"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <!-- Top agencies by realtors -->
+      <div class="detail-card">
+        <div class="detail-card-title">Топ агентств по риэлтерам</div>
+        <div id="top-agencies"></div>
+      </div>
+
+      <!-- Status split -->
+      <div class="detail-card">
+        <div class="detail-card-title">Статус лицензий</div>
+        <div id="status-split"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('analytics');
+
+const { agencies, realtors } = getData();
+
+// ─── KPI ─────────────────────────────────────────────────────────────────────
+const active   = agencies.filter(a => a.status === 'ACTIVE').length;
+const revoked  = agencies.filter(a => a.status === 'REVOKED').length;
+const chamber  = realtors.filter(r => r.isChamberMember).length;
+const avgAge   = (() => {
+  const now = new Date();
+  const ages = agencies.filter(a => a.licenseDate).map(a => (now - new Date(a.licenseDate)) / (365.25*24*3600*1000));
+  return ages.length ? (ages.reduce((s,x)=>s+x,0)/ages.length).toFixed(1) : '—';
+})();
+
+document.getElementById('kpi-grid').innerHTML = [
+  { label:'Всего агентств',       val: agencies.length,  sub:'в реестре',             color:'#dbeafe', text:'#1d4ed8', ico:'building' },
+  { label:'Активные лицензии',    val: active,           sub:`${((active/agencies.length)*100).toFixed(0)}% от общего`, color:'#dcfce7', text:'#15803d', ico:'shield' },
+  { label:'Члены Палаты',         val: chamber,          sub:'аттестованные риэлтеры',color:'#f3e8ff', text:'#7c3aed', ico:'users' },
+  { label:'Средний возраст лиц.',  val: avgAge,           sub:'лет с момента выдачи',  color:'#fef3c7', text:'#b45309', ico:'cal' },
+].map(k => `
+  <div class="kpi-card">
+    <div class="kpi-icon" style="background:${k.color}">
+      <svg viewBox="0 0 24 24" style="color:${k.text}">${ICONS[k.ico]}</svg>
+    </div>
+    <div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  </div>`).join('');
+
+// ─── Region distribution ──────────────────────────────────────────────────────
+const regionOrder = ['MINSK','BREST','VITEBSK','GOMEL','GRODNO','MINSK_REGION','MOGILEV'];
+const regionCounts = {};
+regionOrder.forEach(r => { regionCounts[r] = agencies.filter(a => a.region === r).length; });
+
+new Chart(document.getElementById('chart-regions'), {
+  type: 'doughnut',
+  data: {
+    labels: regionOrder.map(regionLabel),
+    datasets: [{
+      data: regionOrder.map(r => regionCounts[r]),
+      backgroundColor: regionOrder.map(r => regionColor(r) + 'cc'),
+      borderColor: regionOrder.map(r => regionColor(r)),
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { font: { family: 'IBM Plex Sans', size: 12 }, boxWidth: 14, padding: 10 } }
+    },
+    cutout: '60%',
+  }
+});
+
+// ─── Top agencies by realtor count ────────────────────────────────────────────
+const agencyRealtorCounts = agencies.map(a => ({
+  name: a.name.replace(/ООО|ЧП|ЧУП|ОАО|["'«»]/g,'').trim(),
+  count: realtors.filter(r => r.agencyId === a.id).length,
+})).filter(x => x.count > 0).sort((a,b) => b.count - a.count).slice(0,10);
+
+new Chart(document.getElementById('chart-top'), {
+  type: 'bar',
+  data: {
+    labels: agencyRealtorCounts.map(x => x.name.length > 20 ? x.name.slice(0,18)+'…' : x.name),
+    datasets: [{
+      label: 'Риэлтеры',
+      data: agencyRealtorCounts.map(x => x.count),
+      backgroundColor: 'rgba(15,41,66,0.75)',
+      borderColor: 'rgba(15,41,66,1)',
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(0,0,0,.06)' }, ticks: { font: { size: 11 } } },
+      y: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Sans', size: 11 } } },
+    }
+  }
+});
+
+// ─── Top list ─────────────────────────────────────────────────────────────────
+const topAll = agencies.map(a => ({
+  id: a.id,
+  name: a.name,
+  count: realtors.filter(r => r.agencyId === a.id).length,
+})).sort((a,b) => b.count - a.count).slice(0,8);
+
+const maxCnt = Math.max(...topAll.map(x => x.count)) || 1;
+const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+
+document.getElementById('top-agencies').innerHTML = topAll.map((a, i) => `
+  <div class="top-item">
+    <div class="top-rank ${rankClass(i)}">${i+1}</div>
+    <div class="top-name">
+      <a href="agency.html?id=${a.id}" style="color:inherit;text-decoration:none;font-size:12.5px">${a.name}</a>
+    </div>
+    <div class="top-bar-w">
+      <div class="top-bar-bg">
+        <div class="top-bar-fill" style="width:${(a.count/maxCnt*100).toFixed(1)}%"></div>
+      </div>
+    </div>
+    <div class="top-cnt">${a.count}</div>
+  </div>`).join('');
+
+// ─── Status split ─────────────────────────────────────────────────────────────
+const statuses = [
+  { key:'ACTIVE',   label:'Действующие',    count: active,                       bg:'#dcfce7', color:'#15803d' },
+  { key:'REVOKED',  label:'Прекращённые',   count: revoked,                      bg:'#fee2e2', color:'#b91c1c' },
+  { key:'NEW',      label:'Выдано за год',  count: agencies.filter(a => {
+    const d = new Date(a.licenseDate);
+    return (new Date() - d) < 365*24*3600*1000;
+  }).length, bg:'#dbeafe', color:'#1d4ed8' },
+];
+const total = agencies.length || 1;
+document.getElementById('status-split').innerHTML = statuses.map(s => `
+  <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:13px">${s.label}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--text-2)">${s.count}</span>
+    </div>
+    <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${(s.count/total*100).toFixed(1)}%;background:${s.color};border-radius:4px;transition:width .5s"></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:4px">${(s.count/total*100).toFixed(1)}% от общего числа</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

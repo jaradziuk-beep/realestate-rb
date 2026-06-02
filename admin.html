@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Администратор — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title">Администратор</div>
+        <div class="ph-sub">Импорт, экспорт, управление данными</div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in">
+
+    <!-- Stats -->
+    <div class="admin-stat-grid" id="admin-stats"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <!-- Import -->
+      <div class="detail-card">
+        <div class="detail-card-title">Импорт данных из Excel</div>
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:14px">
+          Загрузите .xlsx файл реестра. Данные заменят текущую базу.<br>
+          Формат: столбцы «Название», «УНП», «Статус», «Регион» и т.д.
+        </p>
+
+        <div class="import-tabs">
+          <button class="imp-tab active" onclick="setImportType('agencies',this)">Агентства</button>
+          <button class="imp-tab" onclick="setImportType('realtors',this)">Риэлтеры</button>
+          <button class="imp-tab" onclick="setImportType('chamber',this)">Палата</button>
+        </div>
+
+        <div class="drop-zone" id="drop-zone"
+             onclick="document.getElementById('file-input').click()"
+             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event)">
+          <svg viewBox="0 0 24 24">${'<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>'}</svg>
+          <p>Перетащите файл .xlsx сюда</p>
+          <p class="drop-hint">или нажмите для выбора</p>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(event)">
+        <div class="upload-msg" id="upload-msg"></div>
+      </div>
+
+      <!-- Export -->
+      <div class="detail-card">
+        <div class="detail-card-title">Экспорт данных</div>
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:16px">
+          Скачайте текущие данные в формате Excel или CSV.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-outline" onclick="exportData('agencies','xlsx')">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Агентства — Excel (.xlsx)
+          </button>
+          <button class="btn btn-outline" onclick="exportData('agencies','csv')">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Агентства — CSV
+          </button>
+          <button class="btn btn-outline" onclick="exportData('realtors','xlsx')">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Риэлтеры — Excel (.xlsx)
+          </button>
+          <button class="btn btn-outline" onclick="exportData('realtors','csv')">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Риэлтеры — CSV
+          </button>
+        </div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Управление данными</div>
+          <button class="btn btn-outline btn-sm" onclick="resetToDefaults()" style="border-color:#fecaca;color:var(--red)">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+            Сбросить к исходным данным
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Log -->
+    <div class="section">
+      <div class="section-hdr">
+        <div class="section-title">История импортов</div>
+      </div>
+      <div class="table-wrap" id="import-log-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Тип</th>
+              <th>Файл</th>
+              <th>Записей</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody id="import-log-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- SheetJS for Excel import/export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('admin');
+
+let importType = 'agencies';
+
+// ─── Stats ─────────────────────────────────────────────────────────────────
+function refreshStats() {
+  const { agencies, realtors } = getData();
+  const log = getImportLog();
+  document.getElementById('admin-stats').innerHTML = [
+    { val: agencies.length,                              lbl: 'Агентств в базе' },
+    { val: realtors.length,                              lbl: 'Риэлтеров в базе' },
+    { val: agencies.filter(a=>a.status==='ACTIVE').length, lbl: 'Активных лицензий' },
+    { val: log.length,                                   lbl: 'Импортов выполнено' },
+  ].map(s => `
+    <div class="admin-stat">
+      <div class="admin-stat-val">${s.val}</div>
+      <div class="admin-stat-lbl">${s.lbl}</div>
+    </div>`).join('');
+}
+
+// ─── Import type tabs ──────────────────────────────────────────────────────
+window.setImportType = function(type, btn) {
+  importType = type;
+  document.querySelectorAll('.imp-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+};
+
+// ─── Drag & Drop ───────────────────────────────────────────────────────────
+window.onDragOver = function(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('dragover'); };
+window.onDragLeave = function() { document.getElementById('drop-zone').classList.remove('dragover'); };
+window.onDrop = function(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+};
+window.onFileSelect = function(e) { if (e.target.files[0]) processFile(e.target.files[0]); };
+
+function processFile(file) {
+  const msg = document.getElementById('upload-msg');
+  msg.className = 'upload-msg';
+  msg.textContent = 'Обработка файла…';
+  msg.style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const data = getData();
+      let count = 0;
+
+      if (importType === 'agencies') {
+        const newAgencies = rows.map((row, i) => {
+          // Flexible column name mapping
+          const name   = row['Название лицензиата'] || row['Название'] || row['name'] || '';
+          const unp    = String(row['УНП'] || row['unp'] || '');
+          const status = (row['Статус'] || row['status'] || '').toLowerCase().includes('прекращ') ? 'REVOKED' : 'ACTIVE';
+          const region = detectRegion(unp, row['Регион'] || row['region'] || '');
+          const licNum = String(row['Номер в ЕРЛ'] || row['licenseNum'] || row['Лицензия'] || '');
+          const dateRaw = row['Дата получения'] || row['licenseDate'] || '';
+          const date   = parseDate(dateRaw);
+          if (!name) return null;
+          return { id: (data.agencies.length + i + 100), name, unp, licenseNum: licNum, status, licenseDate: date, licenseRevoked: null, region, actType: 'риэлтерская деятельность' };
+        }).filter(Boolean);
+
+        data.agencies = [...data.agencies.filter(a => !newAgencies.some(n => n.unp && n.unp === a.unp)), ...newAgencies];
+        count = newAgencies.length;
+
+      } else if (importType === 'realtors' || importType === 'chamber') {
+        const newRealtors = rows.map((row, i) => {
+          const fullName    = row['ФИО'] || row['fullName'] || row['Фамилия Имя Отчество'] || '';
+          const certNumber  = String(row['Номер свидетельства'] || row['certNumber'] || row['Свидетельство'] || i+9000);
+          const certDateRaw = row['Дата выдачи свидетельства'] || row['certDate'] || '';
+          const certDate    = parseDate(certDateRaw);
+          const agencyName  = row['Место работы'] || row['chamberAgencyName'] || row['Агентство'] || '';
+          const joinDateRaw = row['Дата вступления в палату'] || row['chamberJoinDate'] || '';
+          const joinDate    = parseDate(joinDateRaw);
+          if (!fullName) return null;
+          // Try to match agency
+          const agency = data.agencies.find(a => a.name.toLowerCase().includes(agencyName.toLowerCase().slice(0,10)));
+          return { id: (data.realtors.length + i + 100), fullName, certNumber, certDate, agencyId: agency?.id || null, chamberAgencyName: agencyName, isChamberMember: importType === 'chamber', hasDisciplinary: false, chamberJoinDate: joinDate };
+        }).filter(Boolean);
+
+        data.realtors = [...data.realtors.filter(r => !newRealtors.some(n => n.certNumber === r.certNumber)), ...newRealtors];
+        count = newRealtors.length;
+      }
+
+      saveData(data);
+      addImportLog({ date: new Date().toISOString(), type: importType, file: file.name, count, status: 'ok' });
+      msg.className = 'upload-msg ok';
+      msg.textContent = `✓ Импортировано ${count} записей из "${file.name}"`;
+      refreshStats();
+      renderImportLog();
+    } catch(err) {
+      msg.className = 'upload-msg err';
+      msg.textContent = `Ошибка: ${err.message}`;
+      addImportLog({ date: new Date().toISOString(), type: importType, file: file.name, count: 0, status: 'error' });
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function detectRegion(unp, hint) {
+  if (hint) {
+    const h = hint.toString().toLowerCase();
+    if (h.includes('минск')) return h.includes('обл') ? 'MINSK_REGION' : 'MINSK';
+    if (h.includes('брест')) return 'BREST';
+    if (h.includes('витебск')) return 'VITEBSK';
+    if (h.includes('гомел')) return 'GOMEL';
+    if (h.includes('гродн')) return 'GRODNO';
+    if (h.includes('могил')) return 'MOGILEV';
+  }
+  const digit = unp ? unp[0] : '1';
+  return { '1':'MINSK','2':'BREST','3':'VITEBSK','4':'GOMEL','5':'GRODNO','6':'MINSK_REGION','7':'MOGILEV' }[digit] || 'MINSK';
+}
+
+function parseDate(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'number') {
+    // Excel serial date
+    const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+    return d.toISOString().slice(0,10);
+  }
+  const s = String(raw).trim();
+  // DD.MM.YYYY
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  // already ISO
+  if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.slice(0,10);
+  return null;
+}
+
+// ─── Export ────────────────────────────────────────────────────────────────
+window.exportData = function(type, format) {
+  const { agencies, realtors } = getData();
+
+  if (type === 'agencies') {
+    const rows = agencies.map(a => ({
+      'Название': a.name,
+      'УНП': a.unp,
+      'Номер лицензии': a.licenseNum,
+      'Статус': statusLabel(a.status),
+      'Регион': regionLabel(a.region),
+      'Дата выдачи': fmtDate(a.licenseDate),
+      'Дата прекращения': fmtDate(a.licenseRevoked),
+      'Вид деятельности': a.actType,
+    }));
+    downloadData(rows, 'agencies_export', format);
+  } else {
+    const rows = realtors.map(r => {
+      const a = agencies.find(ag => ag.id === r.agencyId);
+      return {
+        'ФИО': r.fullName,
+        'Номер свидетельства': r.certNumber,
+        'Дата выдачи': fmtDate(r.certDate),
+        'Агентство': a?.name || r.chamberAgencyName || '',
+        'Регион': a ? regionLabel(a.region) : '',
+        'Член Палаты': r.isChamberMember ? 'Да' : 'Нет',
+        'Дата вступления': fmtDate(r.chamberJoinDate),
+        'Взыскания': r.hasDisciplinary ? 'Да' : 'Нет',
+      };
+    });
+    downloadData(rows, 'realtors_export', format);
+  }
+};
+
+function downloadData(rows, filename, format) {
+  if (format === 'xlsx') {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Данные');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  } else {
+    const headers = Object.keys(rows[0] || {});
+    const csv = [
+      headers.join(';'),
+      ...rows.map(r => headers.map(h => {
+        const v = String(r[h]??'');
+        return v.includes(';') ? `"${v}"` : v;
+      }).join(';'))
+    ].join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+}
+
+// ─── Reset ─────────────────────────────────────────────────────────────────
+window.resetToDefaults = function() {
+  if (confirm('Сбросить все данные к исходным? Импортированные данные будут удалены.')) {
+    resetData();
+  }
+};
+
+// ─── Import Log ────────────────────────────────────────────────────────────
+function renderImportLog() {
+  const log = getImportLog();
+  const typeLabels = { agencies: 'Агентства', realtors: 'Риэлтеры', chamber: 'Палата' };
+  document.getElementById('import-log-body').innerHTML = log.length
+    ? log.map(l => `
+      <tr>
+        <td>${fmtDate(l.date)}</td>
+        <td>${typeLabels[l.type] || l.type}</td>
+        <td class="td-mono">${l.file}</td>
+        <td class="td-mono">${l.count}</td>
+        <td>${l.status === 'ok'
+          ? '<span class="badge b-active">Успешно</span>'
+          : '<span class="badge b-revoked">Ошибка</span>'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:30px">История импортов пуста</td></tr>';
+}
+
+refreshStats();
+renderImportLog();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Агентство — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title" id="ph-title">Агентство</div>
+        <div class="ph-sub">Карточка агентства</div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in" id="page-content">
+    <div class="empty"><p>Загрузка…</p></div>
+  </div>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('agencies');
+
+const { agencies, realtors } = getData();
+const id = parseInt(new URLSearchParams(location.search).get('id'));
+const agency = agencies.find(a => a.id === id);
+
+if (!agency) {
+  document.getElementById('page-content').innerHTML = `
+    <div class="empty">
+      <svg viewBox="0 0 24 24">${ICONS.building}</svg>
+      <p>Агентство не найдено. <a href="agencies.html" style="color:var(--navy)">Вернуться к списку</a></p>
+    </div>`;
+} else {
+  document.getElementById('ph-title').textContent = agency.name;
+  document.title = `${agency.name} — Рынок недвижимости Беларуси`;
+
+  const agencyRealtors = realtors.filter(r => r.agencyId === agency.id);
+  const chamberCount  = agencyRealtors.filter(r => r.isChamberMember).length;
+
+  document.getElementById('page-content').innerHTML = `
+    <!-- Breadcrumb -->
+    <div class="bc">
+      <a href="agencies.html">Агентства</a>
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+      ${agency.name}
+    </div>
+
+    <!-- Hero -->
+    <div class="detail-hero">
+      <div class="detail-av-lg">${initials(agency.name)}</div>
+      <div>
+        <div class="detail-hero-name">${agency.name}</div>
+        <div class="detail-hero-meta">
+          <span><svg viewBox="0 0 24 24">${ICONS.pin}</svg>${regionLabel(agency.region)}</span>
+          <span><svg viewBox="0 0 24 24">${ICONS.cal}</svg>Лицензия с ${fmtDate(agency.licenseDate)}</span>
+          <span>${statusBadge(agency.status)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details -->
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-card-title">Лицензия</div>
+        <div class="detail-row"><div class="detail-key">Номер лицензии</div><div class="detail-val mono">${agency.licenseNum}</div></div>
+        <div class="detail-row"><div class="detail-key">Статус</div><div class="detail-val">${statusBadge(agency.status)}</div></div>
+        <div class="detail-row"><div class="detail-key">Дата выдачи</div><div class="detail-val">${fmtDate(agency.licenseDate)}</div></div>
+        ${agency.licenseRevoked ? `<div class="detail-row"><div class="detail-key">Дата прекращения</div><div class="detail-val" style="color:var(--red)">${fmtDate(agency.licenseRevoked)}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-key">Вид деятельности</div><div class="detail-val">${agency.actType}</div></div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Реквизиты</div>
+        <div class="detail-row"><div class="detail-key">УНП</div><div class="detail-val mono">${agency.unp}</div></div>
+        <div class="detail-row"><div class="detail-key">Регион</div><div class="detail-val">${regionBadge(agency.region)}</div></div>
+        <div class="detail-row"><div class="detail-key">Риэлтеры в реестре</div><div class="detail-val">${agencyRealtors.length}</div></div>
+        <div class="detail-row"><div class="detail-key">Члены Палаты</div><div class="detail-val">${chamberCount}</div></div>
+      </div>
+    </div>
+
+    ${agency.status === 'REVOKED' ? `
+    <div class="alert alert-danger" style="margin-bottom:20px">
+      <svg viewBox="0 0 24 24">${ICONS.warn}</svg>
+      <div>Лицензия данного агентства прекращена ${fmtDate(agency.licenseRevoked)}. Деятельность по лицензии не осуществляется.</div>
+    </div>` : ''}
+
+    <!-- Realtors -->
+    ${agencyRealtors.length ? `
+    <div class="section">
+      <div class="section-hdr">
+        <div class="section-title">Риэлтеры (${agencyRealtors.length})</div>
+        <a href="realtors.html?agencyId=${agency.id}" class="section-link">
+          Все
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </a>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        ${agencyRealtors.map(r => `
+          <a href="realtor.html?id=${r.id}" style="
+            display:flex;align-items:center;gap:10px;
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:8px;padding:12px;
+            text-decoration:none;color:inherit;
+            transition:all .15s;
+          " onmouseover="this.style.borderColor='var(--navy-light)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            <div class="r-av">${personInitials(r.fullName)}</div>
+            <div style="min-width:0">
+              <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.fullName}</div>
+              <div style="font-size:11px;color:var(--text-3);font-family:'IBM Plex Mono',monospace">№${r.certNumber}</div>
+              ${r.isChamberMember ? '<span class="badge b-chamber" style="margin-top:3px;font-size:10.5px">Палата</span>' : ''}
+            </div>
+          </a>`).join('')}
+      </div>
+    </div>` : `
+    <div class="detail-card">
+      <div class="empty" style="padding:30px">
+        <svg viewBox="0 0 24 24">${ICONS.users}</svg>
+        <p>Риэлтеры в базе не найдены</p>
+      </div>
+    </div>`}
+  `;
+}
+</script>
+</body>
+</html>

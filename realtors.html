@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Риэлтеры — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title">Риэлтеры</div>
+        <div class="ph-sub" id="ph-sub"></div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <div class="filter-label">Поиск</div>
+        <input class="filter-input" type="text" id="f-search" placeholder="ФИО или номер свидетельства…" oninput="onSearch()">
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Член Палаты</div>
+        <select class="filter-select" id="f-chamber" onchange="render()">
+          <option value="">Все</option>
+          <option value="1">Только члены</option>
+          <option value="0">Не члены</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Сортировка</div>
+        <select class="filter-select" id="f-sort" onchange="render()">
+          <option value="name-asc">ФИО А — Я</option>
+          <option value="name-desc">ФИО Я — А</option>
+          <option value="date-desc">Сначала новые</option>
+          <option value="date-asc">Сначала старые</option>
+          <option value="cert-asc">Номер свид. ↑</option>
+        </select>
+      </div>
+      <div class="filters-right">
+        <span class="results-cnt" id="results-cnt"></span>
+        <button class="btn btn-outline btn-sm" onclick="clearFilters()">Сбросить</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('name')">ФИО</th>
+            <th onclick="sortBy('cert')">Свидетельство</th>
+            <th>Агентство</th>
+            <th onclick="sortBy('date')">Дата выдачи</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody id="realtors-tbody"></tbody>
+      </table>
+    </div>
+    <div id="pagination"></div>
+  </div>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('realtors');
+
+const { agencies, realtors } = getData();
+let page = 1, sortField = 'name', sortDir = 1;
+const PAGE_SIZE = 15;
+
+// Pre-filter by agencyId from URL
+const urlAgencyId = parseInt(new URLSearchParams(location.search).get('agencyId')) || null;
+
+function getFiltered() {
+  const q       = document.getElementById('f-search').value.toLowerCase().trim();
+  const chamber = document.getElementById('f-chamber').value;
+  const sort    = document.getElementById('f-sort').value;
+
+  let list = realtors.filter(r => {
+    if (urlAgencyId && r.agencyId !== urlAgencyId) return false;
+    if (q && !r.fullName.toLowerCase().includes(q) && !r.certNumber.includes(q)) return false;
+    if (chamber === '1' && !r.isChamberMember) return false;
+    if (chamber === '0' && r.isChamberMember)  return false;
+    return true;
+  });
+
+  list.sort((a, b) => {
+    if (sort === 'name-asc')  return a.fullName.localeCompare(b.fullName, 'ru');
+    if (sort === 'name-desc') return b.fullName.localeCompare(a.fullName, 'ru');
+    if (sort === 'date-desc') return new Date(b.certDate) - new Date(a.certDate);
+    if (sort === 'date-asc')  return new Date(a.certDate) - new Date(b.certDate);
+    if (sort === 'cert-asc')  return parseInt(a.certNumber) - parseInt(b.certNumber);
+    return 0;
+  });
+  return list;
+}
+
+function render() {
+  const filtered = getFiltered();
+  document.getElementById('results-cnt').textContent = `${filtered.length} риэлтеров`;
+  document.getElementById('ph-sub').textContent = `Всего: ${realtors.length} · Показано: ${filtered.length}`;
+
+  const pageData = paginate(filtered, page, PAGE_SIZE);
+
+  if (!pageData.length) {
+    document.getElementById('realtors-tbody').innerHTML = `
+      <tr><td colspan="5">
+        <div class="empty"><svg viewBox="0 0 24 24">${ICONS.users}</svg><p>Риэлтеры не найдены</p></div>
+      </td></tr>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('realtors-tbody').innerHTML = pageData.map(r => {
+    const agency = agencies.find(a => a.id === r.agencyId);
+    return `
+    <tr onclick="location.href='realtor.html?id=${r.id}'">
+      <td>
+        <div class="r-name-cell">
+          <div class="r-av">${personInitials(r.fullName)}</div>
+          <div>
+            <div style="font-weight:600">${r.fullName}</div>
+            ${r.hasDisciplinary ? '<span class="badge b-disc" style="font-size:10.5px">Взыскание</span>' : ''}
+          </div>
+        </div>
+      </td>
+      <td class="td-mono">№${r.certNumber}</td>
+      <td>
+        ${agency
+          ? `<a href="agency.html?id=${agency.id}" onclick="event.stopPropagation()" style="color:var(--navy);font-size:13px">${agency.name}</a>`
+          : `<span style="color:var(--text-3);font-size:13px">${r.chamberAgencyName || '—'}</span>`}
+      </td>
+      <td>${fmtDate(r.certDate)}</td>
+      <td>
+        ${r.isChamberMember ? '<span class="badge b-chamber">Палата</span>' : '<span style="color:var(--text-3);font-size:12.5px">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(document.getElementById('pagination'), filtered.length, page, PAGE_SIZE, 'goPage');
+}
+
+window.goPage = function(p) { page = p; render(); window.scrollTo(0,0); };
+
+const onSearch = debounce(() => { page = 1; render(); }, 250);
+
+function clearFilters() {
+  document.getElementById('f-search').value = '';
+  document.getElementById('f-chamber').value = '';
+  document.getElementById('f-sort').value = 'name-asc';
+  page = 1;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

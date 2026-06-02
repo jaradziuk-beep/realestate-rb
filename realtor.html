@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Риэлтер — Рынок недвижимости Беларуси</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Рынок недвижимости<br>Беларуси</div>
+    <div class="brand-sub">Официальный реестр</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+  <div class="sidebar-footer"><div class="stamp"></div></div>
+</aside>
+
+<main class="main">
+  <header class="page-header">
+    <div class="ph-left">
+      <div>
+        <div class="ph-title" id="ph-title">Риэлтер</div>
+        <div class="ph-sub">Карточка риэлтера</div>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn-icon" onclick="toggleTheme()" id="theme-btn"></button>
+    </div>
+  </header>
+
+  <div class="content fade-in" id="page-content">
+    <div class="empty"><p>Загрузка…</p></div>
+  </div>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+initTheme();
+renderNav('realtors');
+
+const { agencies, realtors } = getData();
+const id = parseInt(new URLSearchParams(location.search).get('id'));
+const realtor = realtors.find(r => r.id === id);
+
+if (!realtor) {
+  document.getElementById('page-content').innerHTML = `
+    <div class="empty">
+      <svg viewBox="0 0 24 24">${ICONS.users}</svg>
+      <p>Риэлтер не найден. <a href="realtors.html" style="color:var(--navy)">Вернуться к списку</a></p>
+    </div>`;
+} else {
+  const agency = agencies.find(a => a.id === realtor.agencyId);
+  document.getElementById('ph-title').textContent = realtor.fullName;
+  document.title = `${realtor.fullName} — Рынок недвижимости Беларуси`;
+
+  document.getElementById('page-content').innerHTML = `
+    <!-- Breadcrumb -->
+    <div class="bc">
+      <a href="realtors.html">Риэлтеры</a>
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+      ${realtor.fullName}
+    </div>
+
+    <!-- Hero -->
+    <div class="detail-hero">
+      <div class="detail-av-lg" style="font-size:22px;font-family:'IBM Plex Sans',sans-serif">
+        ${personInitials(realtor.fullName)}
+      </div>
+      <div>
+        <div class="detail-hero-name">${realtor.fullName}</div>
+        <div class="detail-hero-meta">
+          <span><svg viewBox="0 0 24 24">${ICONS.id}</svg>Свид. №${realtor.certNumber}</span>
+          ${realtor.isChamberMember ? '<span class="badge b-chamber">Член Палаты риэлтеров</span>' : ''}
+          ${realtor.hasDisciplinary ? '<span class="badge b-disc">Есть взыскание</span>' : ''}
+        </div>
+      </div>
+    </div>
+
+    ${realtor.hasDisciplinary ? `
+    <div class="alert alert-danger" style="margin-bottom:20px">
+      <svg viewBox="0 0 24 24">${ICONS.warn}</svg>
+      <div><strong>Имеется дисциплинарное взыскание.</strong>
+      ${realtor.disciplinaryNotes ? ` ${realtor.disciplinaryNotes}` : ''}</div>
+    </div>` : ''}
+
+    <div class="detail-grid">
+      <!-- Certificate -->
+      <div class="detail-card">
+        <div class="detail-card-title">Аттестат / Свидетельство</div>
+        <div class="detail-row">
+          <div class="detail-key">Номер свидетельства</div>
+          <div class="detail-val mono">№${realtor.certNumber}</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-key">Дата выдачи</div>
+          <div class="detail-val">${fmtDate(realtor.certDate)}</div>
+        </div>
+        ${realtor.certExpiry ? `
+        <div class="detail-row">
+          <div class="detail-key">Действителен до</div>
+          <div class="detail-val">${fmtDate(realtor.certExpiry)}</div>
+        </div>` : ''}
+        ${realtor.cardNumber ? `
+        <div class="detail-row">
+          <div class="detail-key">Номер карточки</div>
+          <div class="detail-val mono">${realtor.cardNumber}</div>
+        </div>` : ''}
+      </div>
+
+      <!-- Agency / Chamber -->
+      <div class="detail-card">
+        <div class="detail-card-title">Место работы</div>
+        ${agency ? `
+        <div class="detail-row">
+          <div class="detail-key">Агентство</div>
+          <div class="detail-val">
+            <a href="agency.html?id=${agency.id}" style="color:var(--navy)">${agency.name}</a>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-key">Регион</div>
+          <div class="detail-val">${regionBadge(agency.region)}</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-key">Лицензия</div>
+          <div class="detail-val">${statusBadge(agency.status)}</div>
+        </div>` : `
+        <div class="detail-row">
+          <div class="detail-key">Агентство</div>
+          <div class="detail-val">${realtor.chamberAgencyName || '—'}</div>
+        </div>`}
+        ${realtor.isChamberMember ? `
+        <div class="detail-row">
+          <div class="detail-key">Член Палаты с</div>
+          <div class="detail-val">${fmtDate(realtor.chamberJoinDate)}</div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <a href="realtors.html" class="btn btn-outline">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+        Все риэлтеры
+      </a>
+      ${agency ? `<a href="agency.html?id=${agency.id}" class="btn btn-primary">
+        <svg viewBox="0 0 24 24">${ICONS.building}</svg>
+        Карточка агентства
+      </a>` : ''}
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
